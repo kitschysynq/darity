@@ -37,9 +37,11 @@ var (
 // Client is a KVM client, and can perform actions using the KVM virtual device,
 // such as creating, destroying, or querying virtual machines.
 type Client struct {
-	// TODO(mdlayher): consider creating an interface for this so tests don't
-	// need to rely on the actual KVM virtual device.
+	// KVM virtual device
 	kvm *os.File
+
+	// ioctl syscall implementation
+	ioctl ioctlFunc
 }
 
 // New returns a new Client, after performing some sanity checks to ensure that
@@ -56,6 +58,8 @@ func New() (*Client, error) {
 
 	c := &Client{
 		kvm: kvm,
+		// Perform real ioctl syscalls on device
+		ioctl: ioctl,
 	}
 
 	// Verify correct KVM API version
@@ -82,11 +86,18 @@ func (c *Client) Close() error {
 // APIVersion returns the current KVM API version, as reported by the KVM
 // virtual device.
 func (c *Client) APIVersion() (int, error) {
-	return ioctl(c.kvm.Fd(), C.KVM_GET_API_VERSION, 0)
+	return c.ioctl(c.kvm.Fd(), C.KVM_GET_API_VERSION, 0)
 }
+
+// ioctlFunc is the signature for a function which can perform the ioctl syscall,
+// or a mocked version of it.
+type ioctlFunc func(fd uintptr, request int, argp uintptr) (int, error)
 
 // ioctl is a wrapper used to perform the ioctl syscall using the input
 // file descriptor, request, and arguments pointer.
+//
+// ioctl is the default ioctlFunc implementation, and the one used when New
+// is called.
 func ioctl(fd uintptr, request int, argp uintptr) (int, error) {
 	ret, _, errnop := syscall.Syscall(
 		syscall.SYS_IOCTL,
