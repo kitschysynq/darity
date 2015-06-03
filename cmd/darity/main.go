@@ -8,7 +8,14 @@ import (
 )
 
 func main() {
-	v, err := darity.APIVersion()
+	kvm, err := darity.New()
+	if err != nil {
+		fmt.Printf("error creating KVM client: %q\n", err.Error())
+		return
+	}
+	defer kvm.Close()
+
+	v, err := kvm.APIVersion()
 	if err != nil {
 		fmt.Printf("error getting KVM API version: %q\n", err.Error())
 		return
