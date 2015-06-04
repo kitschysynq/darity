@@ -1,7 +1,7 @@
 darity
 ======
 
-https://travis-ci.org/kitschysynq/darity.svg?branch=master
+[![Build Status](https://travis-ci.org/kitschysynq/darity.svg?branch=master)](https://travis-ci.org/kitschysynq/darity)
 
 A wafer-thin, pure Go interface to KVM
 
