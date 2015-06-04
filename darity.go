@@ -3,9 +3,6 @@
 // +build linux
 package darity
 
-// #include <linux/kvm.h>
-import "C"
-
 import (
 	"errors"
 	"fmt"
@@ -24,6 +21,11 @@ const (
 
 	// devKVM is the name of the KVM virtual device.
 	devKVM = "/dev/kvm"
+)
+
+// Constants taken from from <linux/kvm.h>, so cgo is not necessary.
+const (
+	kvmGetAPIVersion = 44544
 )
 
 var (
@@ -86,7 +88,7 @@ func (c *Client) Close() error {
 // APIVersion returns the current KVM API version, as reported by the KVM
 // virtual device.
 func (c *Client) APIVersion() (int, error) {
-	return c.ioctl(c.kvm.Fd(), C.KVM_GET_API_VERSION, 0)
+	return c.ioctl(c.kvm.Fd(), kvmGetAPIVersion, 0)
 }
 
 // ioctlFunc is the signature for a function which can perform the ioctl syscall,

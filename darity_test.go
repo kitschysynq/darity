@@ -16,6 +16,10 @@ import (
 func TestAPIVersionKVM(t *testing.T) {
 	c := &Client{
 		ioctl: func(fd uintptr, request int, argp uintptr) (int, error) {
+			if request != kvmGetAPIVersion {
+				t.Fatalf("unexpected ioctl request number: %d", request)
+			}
+
 			return Version, nil
 		},
 	}
