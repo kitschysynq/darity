@@ -1,6 +1,6 @@
-// Package darity provides a set of functions for interacting with KVM.
-//
 // +build linux
+
+// Package darity provides a set of functions for interacting with KVM.
 package darity
 
 import (
