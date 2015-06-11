@@ -22,7 +22,7 @@ func main() {
 	}
 	fmt.Printf("KVM API Version: %d\n", v)
 
-	_, err = kvm.CreateVM(darity.KVMMachineTypeDefault)
+	_, err = kvm.CreateVM(darity.MachineTypeDefault)
 	if err != nil {
 		fmt.Printf("error creating vm: %q\n", err.Error())
 	}

@@ -41,7 +41,9 @@ func TestCreateVM(t *testing.T) {
 				t.Fatalf("unexpected ioctl request number: %d", request)
 			}
 
-			return Version, nil
+			// return something that looks like an fd but wouldn't be
+			// std{in,out,err}
+			return 3, nil
 		},
 	}
 

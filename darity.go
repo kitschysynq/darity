@@ -29,13 +29,18 @@ const (
 	kvmCreateVM      = 44545
 )
 
+// MachineType specifies the type of the VM to be created. Paraphrasing the
+// KVM API spec at https://www.kernel.org/doc/Documentation/virtual/kvm/api.txt
+// "You most certainly want to use [MachineTypeDefault] as the machine type."
 type MachineType int
 
+// These constants are derived from <linux/kvm.h> but seem to be absent from the
+// tip of master.
 const (
 	MachineTypeDefault      MachineType = 0
-	MachineTypeS390UControl             = 1
-	MachineTypePPCHV                    = 1
-	MachineTypePPCPR                    = 2
+	MachineTypeS390UControl MachineType = 1
+	MachineTypePPCHV        MachineType = 1
+	MachineTypePPCPR        MachineType = 2
 )
 
 var (
@@ -104,7 +109,7 @@ func (c *Client) APIVersion() (int, error) {
 // CreateVM returns a VM struct built around the fd provided
 // by kvm.
 func (c *Client) CreateVM(t MachineType) (*VM, error) {
-	v, err := c.ioctl(c.kvm.Fd(), kvmCreateVM, 0)
+	v, err := c.ioctl(c.kvm.Fd(), kvmCreateVM, uintptr(t))
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +119,9 @@ func (c *Client) CreateVM(t MachineType) (*VM, error) {
 	}, nil
 }
 
+// VM is a KVM guest, created by calling CreateVM on the client. It can
+// perform actions specified in api.txt as "vm ioctl" such as creating
+// VCPUs and setting IRQ lines.
 type VM struct {
 	// File descriptor of the created VM
 	fd int
