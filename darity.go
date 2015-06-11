@@ -103,7 +103,8 @@ func (c *Client) Close() error {
 // APIVersion returns the current KVM API version, as reported by the KVM
 // virtual device.
 func (c *Client) APIVersion() (int, error) {
-	return c.ioctl(c.kvm.Fd(), kvmGetAPIVersion, 0)
+	v, err := c.ioctl(c.kvm.Fd(), kvmGetAPIVersion, 0)
+	return int(v), err
 }
 
 // CreateVM returns a VM struct built around the fd provided
@@ -124,7 +125,7 @@ func (c *Client) CreateVM(t MachineType) (*VM, error) {
 // VCPUs and setting IRQ lines.
 type VM struct {
 	// File descriptor of the created VM
-	fd int
+	fd uintptr
 
 	// ioctl syscall implementation
 	ioctl ioctlFunc
@@ -132,14 +133,14 @@ type VM struct {
 
 // ioctlFunc is the signature for a function which can perform the ioctl syscall,
 // or a mocked version of it.
-type ioctlFunc func(fd uintptr, request int, argp uintptr) (int, error)
+type ioctlFunc func(fd uintptr, request int, argp uintptr) (uintptr, error)
 
 // ioctl is a wrapper used to perform the ioctl syscall using the input
 // file descriptor, request, and arguments pointer.
 //
 // ioctl is the default ioctlFunc implementation, and the one used when New
 // is called.
-func ioctl(fd uintptr, request int, argp uintptr) (int, error) {
+func ioctl(fd uintptr, request int, argp uintptr) (uintptr, error) {
 	ret, _, errnop := syscall.Syscall(
 		syscall.SYS_IOCTL,
 		fd,
@@ -149,5 +150,5 @@ func ioctl(fd uintptr, request int, argp uintptr) (int, error) {
 	if errnop != 0 {
 		return 0, os.NewSyscallError("ioctl", fmt.Errorf("%d", int(errnop)))
 	}
-	return int(ret), nil
+	return ret, nil
 }

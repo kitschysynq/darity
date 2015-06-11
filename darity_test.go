@@ -15,12 +15,12 @@ import (
 // KVM API version identified by the Version constant.
 func TestAPIVersionKVM(t *testing.T) {
 	c := &Client{
-		ioctl: func(fd uintptr, request int, argp uintptr) (int, error) {
+		ioctl: func(fd uintptr, request int, argp uintptr) (uintptr, error) {
 			if request != kvmGetAPIVersion {
 				t.Fatalf("unexpected ioctl request number: %d", request)
 			}
 
-			return Version, nil
+			return uintptr(Version), nil
 		},
 	}
 
@@ -36,7 +36,7 @@ func TestAPIVersionKVM(t *testing.T) {
 
 func TestCreateVM(t *testing.T) {
 	c := &Client{
-		ioctl: func(fd uintptr, request int, argp uintptr) (int, error) {
+		ioctl: func(fd uintptr, request int, argp uintptr) (uintptr, error) {
 			if request != kvmCreateVM {
 				t.Fatalf("unexpected ioctl request number: %d", request)
 			}
