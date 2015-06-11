@@ -10,6 +10,8 @@ import (
 	"syscall"
 )
 
+import "unsafe"
+
 const (
 	// Version is the expected KVM API version, returned by APIVersion.  This
 	// version number is taken directly from KVM API documentation, found here:
@@ -25,8 +27,9 @@ const (
 
 // Constants taken from from <linux/kvm.h>, so cgo is not necessary.
 const (
-	kvmGetAPIVersion = 44544
-	kvmCreateVM      = 44545
+	kvmGetAPIVersion   = 44544
+	kvmCreateVM        = 44545
+	kvmGetMSRIndexList = 3221532162
 )
 
 type MachineType int
@@ -112,6 +115,27 @@ func (c *Client) CreateVM(t MachineType) (*VM, error) {
 		fd:    v,
 		ioctl: c.ioctl,
 	}, nil
+}
+
+type MSRIndexList []uint32
+
+func (c *Client) GetMSRIndexList() (MSRIndexList, error) {
+	b := &struct {
+		nmsrs   uint32
+		indices [10]uint32
+	}{
+		nmsrs:   10,
+		indices: [10]uint32{},
+	}
+
+	m, err := c.ioctl(c.kvm.Fd(), kvmGetMSRIndexList, uintptr(b))
+	if err != nil {
+		return nil, err
+	}
+	if m != 0 {
+		// return some kind of error
+	}
+	return nil, err
 }
 
 type VM struct {
