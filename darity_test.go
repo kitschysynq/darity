@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"unsafe"
 )
 
 // TestAPIVersion verifies that Client.APIVersion returns the
@@ -50,6 +51,53 @@ func TestCreateVM(t *testing.T) {
 	_, err := c.CreateVM(MachineTypeDefault)
 	if err != nil {
 		t.Errorf("could not create vm: %q", err.Error())
+	}
+}
+
+// TestVMAddMemorySlot verifies that VM.AddMemorySlot correctly allocates new
+// virtual memory for a guest to use.
+func TestVMAddMemorySlot(t *testing.T) {
+	// Number of bytes to allocate and flags to pass
+	n := uint64(1024)
+	flags := MemoryReadonly
+
+	// Track number of times ioctl is invoked
+	var calls int
+
+	v := &VM{
+		Memory: make([]*MemorySlot, 0),
+
+		ioctl: func(fd uintptr, request int, argp uintptr) (uintptr, error) {
+			// Ensure correct request
+			if request != kvmSetUserMemoryRegion {
+				t.Fatalf("unexpected ioctl request number: %d", request)
+			}
+
+			// Retrieve parameter struct data
+			m := (*kvmUserspaceMemoryRegion)(unsafe.Pointer(argp))
+
+			// Verify memory slot increments with each call
+			if want, got := uint32(calls), m.slot; want != got {
+				t.Fatalf("[%02d] memory slot did not increment properly: %d != %d",
+					calls, want, got)
+			}
+
+			// Verify proper guest physical address offset
+			if want, got := (uint64(calls) * n), m.guestPhysAddr; want != got {
+				t.Fatalf("[%02d] incorrect guest physical address offset: %d != %d",
+					calls, want, got)
+			}
+
+			calls++
+			return 0, nil
+		},
+	}
+
+	// Called twice to verify behaviors for both calls
+	for i := 0; i < 2; i++ {
+		if err := v.AddMemorySlot(n, flags); err != nil {
+			t.Fatalf("could not add memory slot: %q", err.Error())
+		}
 	}
 }
 

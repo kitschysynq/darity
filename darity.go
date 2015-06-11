@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"syscall"
+	"unsafe"
 )
 
 const (
@@ -25,8 +26,9 @@ const (
 
 // Constants taken from from <linux/kvm.h>, so cgo is not necessary.
 const (
-	kvmGetAPIVersion = 44544
-	kvmCreateVM      = 44545
+	kvmGetAPIVersion       = 44544
+	kvmCreateVM            = 44545
+	kvmSetUserMemoryRegion = 1075883590
 )
 
 // MachineType specifies the type of the VM to be created. Paraphrasing the
@@ -115,6 +117,8 @@ func (c *Client) CreateVM(t MachineType) (*VM, error) {
 		return nil, err
 	}
 	return &VM{
+		Memory: make([]*MemorySlot, 0),
+
 		fd:    v,
 		ioctl: c.ioctl,
 	}, nil
@@ -124,11 +128,104 @@ func (c *Client) CreateVM(t MachineType) (*VM, error) {
 // perform actions specified in api.txt as "vm ioctl" such as creating
 // VCPUs and setting IRQ lines.
 type VM struct {
+	// Memory represents a collection of physical memory slots for a VM.
+	Memory []*MemorySlot
+
 	// File descriptor of the created VM
 	fd uintptr
 
 	// ioctl syscall implementation
 	ioctl ioctlFunc
+}
+
+// MemorySlotFlag is a flag which can be used with VM.AddMemorySlot.
+type MemorySlotFlag uint32
+
+// Flags taken from KVM API documentation, Section 4.35.
+const (
+	MemoryLogDirtyPages MemorySlotFlag = 1
+	MemoryReadonly      MemorySlotFlag = 2
+)
+
+// MemorySlot represents a virtual memory slot for a guest, and contains metadata
+// regarding the memory, as well as the actual backing memory slice.
+type MemorySlot struct {
+	Slot          uint32
+	Flags         uint32
+	GuestPhysAddr uint64
+	MemorySize    uint64
+	UserspaceAddr uint64
+
+	memory []byte
+}
+
+// kvmUserspaceMemoryRegion is analagous to kvm_userspace_memory_region, and is
+// used to create or modify a guest physical memory slot.
+type kvmUserspaceMemoryRegion struct {
+	slot          uint32
+	flags         uint32
+	guestPhysAddr uint64
+	memorySize    uint64
+	userspaceAddr uint64
+}
+
+// AddMemorySlot allocates n bytes of virtual memory for a VM in a single slot,
+// using the host's physical memory.  Successive calls can be used to allocate
+// multiple slots of virtual memory.
+func (v *VM) AddMemorySlot(n uint64, flags MemorySlotFlag) error {
+	// Allocate a chunk of memory to be used with a guest
+	memory := make([]byte, n)
+
+	// Slot increments with MemorySlots added to the VM
+	slot := uint32(len(v.Memory))
+
+	// Physical address starts at 0, and increments by the offset and memory
+	// size of the previous slot
+	var guestPhysAddr uint64
+	if l := len(v.Memory); l > 0 {
+		guestPhysAddr = v.Memory[l-1].GuestPhysAddr + v.Memory[l-1].MemorySize
+	}
+
+	// TODO: optimize.
+	// "It is recommended that the lower 21 bits of guest_phys_addr and userspace_addr
+	// be identical.  This allows large pages in the guest to be backed by large
+	// pages in the host."
+
+	uFlags := uint32(flags)
+	uUserspaceAddr := uint64(uintptr(unsafe.Pointer(&memory[0])))
+
+	// Parameter struct to perform ioctl request
+	m := kvmUserspaceMemoryRegion{
+		slot:          slot,
+		flags:         uFlags,
+		guestPhysAddr: guestPhysAddr,
+		memorySize:    n,
+		userspaceAddr: uUserspaceAddr,
+	}
+
+	// Attempt to add a memory slot
+	r, err := v.ioctl(v.fd, kvmSetUserMemoryRegion, uintptr(unsafe.Pointer(&m)))
+	if err != nil {
+		return err
+	}
+	if r != 0 {
+		return errors.New("failed to add memory slot")
+	}
+
+	// Store for later use
+	v.Memory = append(v.Memory, &MemorySlot{
+		Slot:          slot,
+		Flags:         uFlags,
+		GuestPhysAddr: guestPhysAddr,
+		MemorySize:    n,
+		UserspaceAddr: uUserspaceAddr,
+
+		// TODO: If we don't keep this here, will the guest's physical memory be
+		// garbage collected?
+		memory: memory,
+	})
+
+	return nil
 }
 
 // ioctlFunc is the signature for a function which can perform the ioctl syscall,
