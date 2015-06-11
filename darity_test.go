@@ -34,6 +34,23 @@ func TestAPIVersionKVM(t *testing.T) {
 	}
 }
 
+func TestCreateVM(t *testing.T) {
+	c := &Client{
+		ioctl: func(fd uintptr, request int, argp uintptr) (int, error) {
+			if request != kvmCreateVM {
+				t.Fatalf("unexpected ioctl request number: %d", request)
+			}
+
+			return Version, nil
+		},
+	}
+
+	_, err := c.CreateVM(MachineTypeDefault)
+	if err != nil {
+		t.Errorf("could not create vm: %q", err.Error())
+	}
+}
+
 // tempFile creates a temporary file for use as a mock KVM virtual device, and
 // returns the file and a function to clean it up and remove it on completion.
 func tempFile(t *testing.T) (*os.File, func()) {

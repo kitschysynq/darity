@@ -26,6 +26,16 @@ const (
 // Constants taken from from <linux/kvm.h>, so cgo is not necessary.
 const (
 	kvmGetAPIVersion = 44544
+	kvmCreateVM      = 44545
+)
+
+type MachineType int
+
+const (
+	MachineTypeDefault      MachineType = 0
+	MachineTypeS390UControl             = 1
+	MachineTypePPCHV                    = 1
+	MachineTypePPCPR                    = 2
 )
 
 var (
@@ -89,6 +99,27 @@ func (c *Client) Close() error {
 // virtual device.
 func (c *Client) APIVersion() (int, error) {
 	return c.ioctl(c.kvm.Fd(), kvmGetAPIVersion, 0)
+}
+
+// CreateVM returns a VM struct built around the fd provided
+// by kvm.
+func (c *Client) CreateVM(t MachineType) (*VM, error) {
+	v, err := c.ioctl(c.kvm.Fd(), kvmCreateVM, 0)
+	if err != nil {
+		return nil, err
+	}
+	return &VM{
+		fd:    v,
+		ioctl: c.ioctl,
+	}, nil
+}
+
+type VM struct {
+	// File descriptor of the created VM
+	fd int
+
+	// ioctl syscall implementation
+	ioctl ioctlFunc
 }
 
 // ioctlFunc is the signature for a function which can perform the ioctl syscall,
