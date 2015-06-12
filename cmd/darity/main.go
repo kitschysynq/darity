@@ -22,8 +22,19 @@ func main() {
 	}
 	fmt.Printf("KVM API Version: %d\n", v)
 
-	_, err = kvm.CreateVM(darity.MachineTypeDefault)
+	vm, err := kvm.CreateVM(darity.MachineTypeDefault)
 	if err != nil {
 		fmt.Printf("error creating vm: %q\n", err.Error())
+		return
+	}
+
+	for i := 0; i < 4; i++ {
+		if err := vm.AddMemorySlot(128<<20, 0); err != nil {
+			fmt.Printf("error adding memory slot: %q\n", err.Error())
+			return
+		}
+
+		m := vm.Memory[i]
+		fmt.Printf("memory: slot: %02d, size: %d, offset: %d\n", m.Slot, m.MemorySize, m.GuestPhysAddr)
 	}
 }
