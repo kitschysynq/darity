@@ -55,8 +55,8 @@ var (
 	//   value other than 12.
 	ErrIncorrectVersion = errors.New("incorrect KVM version")
 
-	// ErrTooManyVCPUS is returned when a more than kvmCapMaxCPUS is requested.
-	ErrTooManyVCPUS = fmt.Errorf("a maximum of %d VCPUs are supported.", kvmCapNrVCPUS)
+	// ErrTooManyVCPUS is returned when a more than kvmCapNrVCPUS is requested.
+	ErrTooManyVCPUS = fmt.Errorf("a maximum of %d VCPUs are supported", kvmCapNrVCPUS)
 )
 
 // Client is a KVM client, and can perform actions using the KVM virtual device,
@@ -238,7 +238,7 @@ func (v *VM) AddMemorySlot(n uint64, flags MemorySlotFlag) error {
 }
 
 // AddVCPU adds n VCPUs to a virtual machine.
-func (v *VM) AddVCPU(n uint64) error {
+func (v *VM) AddVCPU(n uint8) error {
 	if n > kvmCapNrVCPUS {
 		return ErrTooManyVCPUS
 	}
