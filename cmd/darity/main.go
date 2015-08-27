@@ -28,6 +28,11 @@ func main() {
 		return
 	}
 
+	if err := vm.AddVCPU(2); err != nil {
+		fmt.Printf("error adding vcpu: %s\n", err)
+		return
+	}
+
 	for i := 0; i < 4; i++ {
 		if err := vm.AddMemorySlot(128<<20, 0); err != nil {
 			fmt.Printf("error adding memory slot: %q\n", err.Error())
