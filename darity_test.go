@@ -101,6 +101,35 @@ func TestVMAddMemorySlot(t *testing.T) {
 	}
 }
 
+func TestVMAddVCPU(t *testing.T) {
+	ioctlCallCount := 0
+
+	vm := &VM{
+		ioctl: func(fd uintptr, request int, argp uintptr) (uintptr, error) {
+			ioctlCallCount++
+
+			if request != kvmCreateVCPU {
+				t.Fatalf("unexpected ioctl request number: %d", request)
+			}
+
+			return 0, nil
+		},
+	}
+
+	err := vm.AddVCPU(2)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if err := vm.AddVCPU(kvmCapNrVCPUS + 1); err == nil {
+		t.Error("expected failure when adding more than max supported VCPUs")
+	}
+
+	if ioctlCallCount > 1 {
+		t.Error("expected a single ioctl call, got %d", ioctlCallCount)
+	}
+}
+
 // tempFile creates a temporary file for use as a mock KVM virtual device, and
 // returns the file and a function to clean it up and remove it on completion.
 func tempFile(t *testing.T) (*os.File, func()) {

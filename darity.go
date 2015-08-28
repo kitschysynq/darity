@@ -26,8 +26,11 @@ const (
 
 // Constants taken from from <linux/kvm.h>, so cgo is not necessary.
 const (
+	kvmCapNrVCPUS = 9
+
 	kvmGetAPIVersion       = 44544
 	kvmCreateVM            = 44545
+	kvmCreateVCPU          = 44609
 	kvmSetUserMemoryRegion = 1075883590
 )
 
@@ -51,6 +54,9 @@ var (
 	//   Applications should refuse to run if KVM_GET_API_VERSION returns a
 	//   value other than 12.
 	ErrIncorrectVersion = errors.New("incorrect KVM version")
+
+	// ErrTooManyVCPUS is returned when a more than kvmCapNrVCPUS is requested.
+	ErrTooManyVCPUS = fmt.Errorf("a maximum of %d VCPUs are supported", kvmCapNrVCPUS)
 )
 
 // Client is a KVM client, and can perform actions using the KVM virtual device,
@@ -133,6 +139,9 @@ type VM struct {
 
 	// File descriptor of the created VM
 	fd uintptr
+
+	// File descriptor for the VM's VCPUs
+	vcpufd uintptr
 
 	// ioctl syscall implementation
 	ioctl ioctlFunc
@@ -224,6 +233,22 @@ func (v *VM) AddMemorySlot(n uint64, flags MemorySlotFlag) error {
 		// garbage collected?
 		memory: memory,
 	})
+
+	return nil
+}
+
+// AddVCPU adds n VCPUs to a virtual machine.
+func (v *VM) AddVCPU(n uint8) error {
+	if n > kvmCapNrVCPUS {
+		return ErrTooManyVCPUS
+	}
+
+	r, err := v.ioctl(v.fd, kvmCreateVCPU, uintptr(n))
+	if err != nil {
+		return err
+	}
+
+	v.vcpufd = r
 
 	return nil
 }
